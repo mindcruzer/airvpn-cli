@@ -1,0 +1,82 @@
+#!/usr/bin/python
+
+"""
+AirVPN CLI.
+
+Usage: 
+    airvpn setup <config-file> <name> [--connect] [--openvpn-dir=DIR]
+    airvpn connect <name> [--openvpn-dir=DIR]
+    airvpn list [--openvpn-dir=DIR]
+    airvpn iptables-persistent [--openvpn-dir=DIR]
+    airvpn -h | --help
+    airvpn -v | --version
+
+Options:
+    -h --help           Show this screen.
+    -v --version        Show version.
+    --connect           Connect to server after setup.
+    --openvpn-dir=DIR   Path to the OpenVPN config directory. [default: /etc/openvpn]
+"""
+
+import os
+import shutil
+
+from sh import (chown, chmod, openvpn, iptables)
+from docopt import docopt
+
+
+def setup(config_file, name, connect, config_dir):
+    print 'Copying %s to %s...' % (config_file, config_dir)
+    
+    try:
+        shutil.copy(config_file, config_dir)
+    except IOError:
+        print 'Invalid config file or OpenVPN directory.'
+        return 
+    
+    config_path = os.path.join(config_dir, name + '.ovpn')
+    os.rename(os.path.join(config_dir, config_file), config_path)
+
+    # root ownership and exclusive rw permissions
+    chown('root', config_path)
+    chmod('600', config_path)
+
+    if connect:
+        print 'Starting OpenVPN with %s configuration...' % name
+        openvpn('--config', os.path.abspath(config_path), daemon=True)
+
+
+def connect(name, config_dir):
+    print 'would connect to ' + name
+
+
+def list_servers(config_dir):
+    print 'would list configured servers in ' + config_dir
+
+
+def iptables_persistent(config_dir):
+    print 'would output iptables-persistent rules for servers in ' + config_dir
+
+
+def main(args):
+    if args['setup']:
+        setup(args['<config-file>'],
+              args['<name>'],
+              args['--connect'],
+              args['--openvpn-dir'])
+    elif args['connect']:
+        connect(args['<name>'],
+                args['--openvpn-dir'])
+    elif args['list']:
+        list_servers(args['--openvpn-dir'])
+    elif args['iptables_persistent']:
+        iptables_persistent(args['--openvpn-dir'])
+
+
+if __name__ == '__main__':
+    if not os.geteuid() == 0:
+        print "Nope. Must be run as root."
+        exit()
+
+    args = docopt(__doc__, version='AirVPN CLI v1.0.0')
+    main(args)
