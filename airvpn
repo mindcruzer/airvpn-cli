@@ -145,33 +145,35 @@ def list_remote_servers():
     """
     response = requests.get('https://airvpn.org/status/')
 
-    page = lxml.html.fromstring(response.text)
+    if response.status_code == 200:
+        page = lxml.html.fromstring(response.text)
 
-    server_boxes = page.xpath('//div[@class="air_server_box_1"]')
-    
-    server_table = texttable.Texttable()
-    server_table.header(['Server Name', 'Location'])
-    server_table.set_cols_width([12, 40])
-    server_table.set_deco(server_table.HEADER | server_table.VLINES)
+        server_boxes = page.xpath('//div[@class="air_server_box_1"]')
+        
+        server_table = texttable.Texttable()
+        server_table.header(['Server Name', 'Location'])
+        server_table.set_cols_width([12, 40])
+        server_table.set_deco(server_table.HEADER | server_table.VLINES)
 
-    for box in server_boxes:
-        name = box.xpath('div[1]/div[1]/div[1]/text()')[0].strip()
-        country = box.xpath('div[1]/div[2]/text()')[0].strip()
-        city_state = box.xpath('div[1]/div[2]/span/text()')[0].strip()
-        server_table.add_row([name, '%s, %s' % (city_state, country)])
-    
-    print server_table.draw()
+        for box in server_boxes:
+            name = box.xpath('div[1]/div[1]/div[1]/text()')[0].strip()
+            country = box.xpath('div[1]/div[2]/text()')[0].strip()
+            city_state = box.xpath('div[1]/div[2]/span/text()')[0].strip()
+            server_table.add_row([name, '%s, %s' % (city_state, country)])
+        
+        print server_table.draw()
+    else:
+        print 'Loading server list failed.'
 
 
 def list_local_servers(config_dir):
     """
     Lists the names of all locally configured servers. 
     """
-    print 'Configured servers:'
     for root, dirs, files in os.walk(os.path.abspath(config_dir)):
         for _file in files:
             if _file.endswith('.ovpn'):
-                print _file.split('.')[0]
+                print _file.split('.')[0].capitalize()
 
 
 def status(server_name):
@@ -180,24 +182,27 @@ def status(server_name):
     AirVPN server.
     """
     response = requests.get('https://airvpn.org/status/')
+    
+    if response.status_code == 200:
+        page = lxml.html.fromstring(response.text)
 
-    page = lxml.html.fromstring(response.text)
+        server_boxes = page.xpath('//div[@class="air_server_box_1"]')
 
-    server_boxes = page.xpath('//div[@class="air_server_box_1"]')
-
-    for box in server_boxes:
-        name = box.xpath('div[1]/div[1]/div[1]/text()')[0].strip().lower()
-        if name == server_name:
-            bandwidth = box.xpath('div[2]/div[1]/div[1]/div[2]/text()')[0].strip()
-            users = box.xpath('div[2]/div[1]/span/text()')[0].strip()
-            print '%s' % name.capitalize()
-            print "--------------------"
-            print 'Bandwidth: %s' % bandwidth
-            print 'Users: %s' % users
-            break
+        for box in server_boxes:
+            name = box.xpath('div[1]/div[1]/div[1]/text()')[0].strip().lower()
+            if name == server_name:
+                bandwidth = box.xpath('div[2]/div[1]/div[1]/div[2]/text()')[0].strip()
+                users = box.xpath('div[2]/div[1]/span/text()')[0].strip()
+                print '%s' % name.capitalize()
+                print "--------------------"
+                print 'Bandwidth: %s' % bandwidth
+                print 'Users: %s' % users
+                break
+        else:
+            print 'Server not found.'
     else:
-        print 'Server not found.'
-            
+        print 'Loading server list failed.'
+
 
 def iptables_persistent(config_dir):
     """
