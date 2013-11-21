@@ -7,7 +7,7 @@ Usage:
     airvpn setup <config-file> <name> [--connect] [--openvpn-dir=DIR]
     airvpn connect <name> [--openvpn-dir=DIR]
     airvpn list [--local] [--openvpn-dir=DIR]
-    airvpn status <server-id>
+    airvpn status <server-name>
     airvpn iptables-persistent [--openvpn-dir=DIR]
     airvpn -h | --help
     airvpn -v | --version
@@ -150,7 +150,7 @@ def list_remote_servers():
     server_boxes = page.xpath('//div[@class="air_server_box_1"]')
     
     server_table = texttable.Texttable()
-    server_table.header(['Name', 'Location'])
+    server_table.header(['Server Name', 'Location'])
     server_table.set_cols_width([12, 40])
     server_table.set_deco(server_table.HEADER | server_table.VLINES)
 
@@ -174,13 +174,30 @@ def list_local_servers(config_dir):
                 print _file.split('.')[0]
 
 
-def status(server_id):
+def status(server_name):
     """
     Displays the status (bandwidth, # users connected) of the specified 
     AirVPN server.
     """
-    pass
+    response = requests.get('https://airvpn.org/status/')
 
+    page = lxml.html.fromstring(response.text)
+
+    server_boxes = page.xpath('//div[@class="air_server_box_1"]')
+
+    for box in server_boxes:
+        name = box.xpath('div[1]/div[1]/div[1]/text()')[0].strip().lower()
+        if name == server_name:
+            bandwidth = box.xpath('div[2]/div[1]/div[1]/div[2]/text()')[0].strip()
+            users = box.xpath('div[2]/div[1]/span/text()')[0].strip()
+            print '%s' % name.capitalize()
+            print "--------------------"
+            print 'Bandwidth: %s' % bandwidth
+            print 'Users: %s' % users
+            break
+    else:
+        print 'Server not found.'
+            
 
 def iptables_persistent(config_dir):
     """
@@ -205,15 +222,11 @@ def main(args):
         else:
             list_remote_servers()
     elif args['status']:
-        status(args['<server-id>'])
+        status(args['<server-name>'])
     elif args['iptables_persistent']:
         iptables_persistent(args['--openvpn-dir'])
 
 
 if __name__ == '__main__':
-    if not os.geteuid() == 0: 
-        print "Nope. Must be run as root."
-        exit()
-
     args = docopt(__doc__, version='AirVPN CLI v1.0.0')
     main(args)
