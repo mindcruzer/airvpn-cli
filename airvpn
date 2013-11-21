@@ -22,12 +22,50 @@ Options:
 
 import os
 import shutil
+import getpass
 
-from sh import (chown, chmod, openvpn, kill, iptables)
 from docopt import docopt
+from sh import (chown, chmod, openvpn, kill, iptables)
+import lxml.html
+import requests
 
 PID_PATH = '/var/run/openvpn.pid'
 
+
+def login():
+    """
+    Creates a session and logs the user into AirVPN
+    """
+    print "Log in to AirVPN.org"
+    print "--------------------"
+    username = raw_input('Username: ')
+    password = getpass.getpass()
+
+    session = requests.Session()
+    response = session.get('http://airvpn.org/')
+    
+    # grab the csrf token from the login form
+    page = lxml.html.fromstring(response.text)
+    auth_key = page.get_element_by_id('login').inputs['auth_key'].get('value')
+
+    login_data = { 
+        'auth_key': auth_key,
+        'referer': 'https://airvpn.org/',
+        'ips_username': username,
+        'ips_password': password
+    }
+    
+    response = session.post(
+        'https://airvpn.org/index.php?app=core&module=global&section=login&do=process',
+        data=login_data,
+        allow_redirects=False
+    )
+
+    # If the login fails, the login page is re-rendered (200 response);
+    # if the login succeeds, the user is redirected (302 response)
+    if response.status_code == 302:
+        return session
+    
 
 def get_pid():
     """
