@@ -28,13 +28,15 @@ from docopt import docopt
 from sh import (chown, chmod, openvpn, kill, iptables)
 import lxml.html
 import requests
+import texttable
 
 PID_PATH = '/var/run/openvpn.pid'
 
 
 def login():
     """
-    Creates a session and logs the user into AirVPN
+    Creates a session and logs the user into AirVPN, returning 
+    the session on success.
     """
     print "Log in to AirVPN.org"
     print "--------------------"
@@ -42,7 +44,7 @@ def login():
     password = getpass.getpass()
 
     session = requests.Session()
-    response = session.get('http://airvpn.org/')
+    response = session.get('https://airvpn.org/')
     
     # grab the csrf token from the login form
     page = lxml.html.fromstring(response.text)
@@ -141,7 +143,24 @@ def list_remote_servers():
     """
     Lists the names and locations of all available AirVPN servers.
     """
-    pass
+    response = requests.get('https://airvpn.org/status/')
+
+    page = lxml.html.fromstring(response.text)
+
+    server_boxes = page.xpath('//div[@class="air_server_box_1"]')
+    
+    server_table = texttable.Texttable()
+    server_table.header(['Name', 'Location'])
+    server_table.set_cols_width([12, 40])
+    server_table.set_deco(server_table.HEADER | server_table.VLINES)
+
+    for box in server_boxes:
+        name = box.xpath('div[1]/div[1]/div[1]/text()')[0].strip()
+        country = box.xpath('div[1]/div[2]/text()')[0].strip()
+        city_state = box.xpath('div[1]/div[2]/span/text()')[0].strip()
+        server_table.add_row([name, '%s, %s' % (city_state, country)])
+    
+    print server_table.draw()
 
 
 def list_local_servers(config_dir):
