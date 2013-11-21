@@ -4,8 +4,8 @@
 AirVPN CLI.
 
 Usage: 
-    airvpn setup <config-file> <name> [--connect] [--openvpn-dir=DIR]
-    airvpn connect <name> [--openvpn-dir=DIR]
+    airvpn setup <server-name> [--connect] [--openvpn-dir=DIR]
+    airvpn connect <server-name> [--openvpn-dir=DIR]
     airvpn list [--local] [--openvpn-dir=DIR]
     airvpn status <server-name>
     airvpn iptables-persistent [--openvpn-dir=DIR]
@@ -31,6 +31,10 @@ import requests
 import texttable
 
 PID_PATH = '/var/run/openvpn.pid'
+
+
+def is_root():
+    return os.geteuid() == 0
 
 
 def login():
@@ -82,56 +86,113 @@ def get_pid():
     return pid_file.read()
 
 
-def setup(config_file, name, connect, config_dir):
+def accept_terms():
+    """
+    Shows the terms of service to the user, and asks for acceptance.
+    """
+    response = raw_input('Do you agree to the AirVPN Terms of Service at https://airvpn.org/tos/? (yes/no) ')
+
+    if response.lower() != 'yes':
+        print 'You must agree to the terms of service to continue.'
+        return
+    
+    second_response = raw_input('Do you explicitly accept points 8, 10 and 11 in the AirVPN Terms of Service at https://airvpn.org/tos/? (yes/no) ')
+
+    if second_response.lower() != 'yes':
+        print 'You must accept points 8, 10 and 11 to continue.'
+        return 
+
+    return True
+
+
+def setup(server_name, connect, config_dir):
     """
     Configures an AirVPN server.
     """
-    print 'Copying %s to %s...' % (config_file, config_dir)
-    
-    try:
-        shutil.copy(config_file, config_dir)
-    except IOError:
-        print 'Invalid config file or OpenVPN directory.'
-        return 
-    except:
-        print 'Copying configuration file to OpenVPN configuration directory failed.'
-        return
-    
-    config_path = os.path.join(config_dir, name + '.ovpn')
-    
-    try:
-        os.rename(os.path.join(config_dir, config_file), config_path)
-    except:
-        print 'Renaming configuration file failed.'
+    if not is_root():
+        print 'This command must be run as root.'
         return
 
+    session = login()
+    if not session:
+        print 'Login failed.'
+        return
+    
+    print 'Logged in to AirVPN.org'
+    print 'Generating configuration...'
+
+    # TODO: Necessary?
+    #if not accept_terms: 
+    #    return
+    
+    generator_url = 'https://airvpn.org/generator/'
+
+    response = session.get(generator_url)
+    page = lxml.html.fromstring(response.text)
+    
     try:
-        # root ownership and exclusive rw permissions
+        # get the csrf token from the response
+        csrf_token = page.get_element_by_id('generator').inputs['csrf_token'].get('value')
+    except:
+        print 'Account does not allow config generation. Have you tried giving AirVPN money?'
+        return
+
+    config_data = {
+        'csrf_token': csrf_token,
+        'download_mode': 'list',
+        'download_index': 0,
+        'system': 'linux',
+        'server_pavonis': 'on',
+        'proxy_mode': 'none',
+        'fileprefix': '',
+        'customdirectives': '',
+        'mode_1': 'on',
+        'tosaccept': 'on',
+        'tosaccept2': 'on'
+    }
+
+    response = session.post(generator_url, data=config_data)
+    
+    config_path = os.path.join(config_dir, server_name + '.ovpn')
+
+    # write config file to the openvpn config directory
+    config_file = open(config_path, 'w')
+    config_file.write(response.text)
+    config_file.close()
+
+    try:
+        # set root ownership and exclusive rw permissions
         chown('root', config_path)
         chmod('600', config_path)
     except:
         print 'Setting permissions on configuration file failed.'
         return
 
-    if connect:
-        connect(name, config_dir)
-        
+    print '%s server configured.' % server_name.capitalize()
 
-def connect(name, config_dir):
+    if connect:
+        connect(server_name, config_dir)
+
+
+def connect(server_name, config_dir):
     """
     Connects to a configured AirVPN server.
     """
+    if not is_root():
+        print 'This command must be run as root.'
+        return
+    
     pid = get_pid()
     if pid:
         'Shutting down OpenVPN daemon...'
         try:
             kill(pid)
         except:
-            print 'Unable to shut down existing openvpn daemon process.'
+            print 'Unable to shut down existing OpenVPN daemon process.'
             return
 
-    print 'Starting OpenVPN daemon with %s configuration...' % name
-    config_path = os.path.join(config_dir, name + '.ovpn')
+    print 'Starting OpenVPN daemon with %s configuration...' % server_name
+    config_path = os.path.join(config_dir, server_name + '.ovpn')
         
     try:
         openvpn('--config', os.path.abspath(config_path), '--writepid', PID_PATH, daemon=True)
@@ -209,17 +270,16 @@ def iptables_persistent(config_dir):
     Outputs rules for blocking non-VPN traffic in the form used by 
     iptables-persistent.
     """
-    print 'would output iptables-persistent rules for servers in ' + config_dir
+    print 'implement me?'
 
 
 def main(args):
     if args['setup']:
-        setup(args['<config-file>'],
-              args['<name>'],
+        setup(args['<server-name>'],
               args['--connect'],
               args['--openvpn-dir'])
     elif args['connect']:
-        connect(args['<name>'],
+        connect(args['<server-name>'],
                 args['--openvpn-dir'])
     elif args['list']:
         if args['--local']:
