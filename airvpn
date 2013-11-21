@@ -6,7 +6,8 @@ AirVPN CLI.
 Usage: 
     airvpn setup <config-file> <name> [--connect] [--openvpn-dir=DIR]
     airvpn connect <name> [--openvpn-dir=DIR]
-    airvpn list [--openvpn-dir=DIR]
+    airvpn list [--local] [--openvpn-dir=DIR]
+    airvpn status <server-id>
     airvpn iptables-persistent [--openvpn-dir=DIR]
     airvpn -h | --help
     airvpn -v | --version
@@ -16,16 +17,35 @@ Options:
     -v --version        Show version.
     --connect           Connect to server after setup.
     --openvpn-dir=DIR   Path to the OpenVPN config directory. [default: /etc/openvpn]
+    --local             List servers that are configured.
 """
 
 import os
 import shutil
 
-from sh import (chown, chmod, openvpn, iptables)
+from sh import (chown, chmod, openvpn, kill, iptables)
 from docopt import docopt
+
+PID_PATH = '/var/run/openvpn.pid'
+
+
+def get_pid():
+    """
+    Gets the PID of the currently running OpenVPN daemon process, 
+    if any.
+    """
+    try:
+        pid_file = open(PID_PATH, 'r')
+    except IOError:
+        return None
+
+    return pid_file.read()
 
 
 def setup(config_file, name, connect, config_dir):
+    """
+    Configures an AirVPN server.
+    """
     print 'Copying %s to %s...' % (config_file, config_dir)
     
     try:
@@ -33,28 +53,83 @@ def setup(config_file, name, connect, config_dir):
     except IOError:
         print 'Invalid config file or OpenVPN directory.'
         return 
+    except:
+        print 'Copying configuration file to OpenVPN configuration directory failed.'
+        return
     
     config_path = os.path.join(config_dir, name + '.ovpn')
-    os.rename(os.path.join(config_dir, config_file), config_path)
+    
+    try:
+        os.rename(os.path.join(config_dir, config_file), config_path)
+    except:
+        print 'Renaming configuration file failed.'
+        return
 
-    # root ownership and exclusive rw permissions
-    chown('root', config_path)
-    chmod('600', config_path)
+    try:
+        # root ownership and exclusive rw permissions
+        chown('root', config_path)
+        chmod('600', config_path)
+    except:
+        print 'Setting permissions on configuration file failed.'
+        return
 
     if connect:
-        print 'Starting OpenVPN with %s configuration...' % name
-        openvpn('--config', os.path.abspath(config_path), daemon=True)
-
+        connect(name, config_dir)
+        
 
 def connect(name, config_dir):
-    print 'would connect to ' + name
+    """
+    Connects to a configured AirVPN server.
+    """
+    pid = get_pid()
+    if pid:
+        'Shutting down OpenVPN daemon...'
+        try:
+            kill(pid)
+        except:
+            print 'Unable to shut down existing openvpn daemon process.'
+            return
+
+    print 'Starting OpenVPN daemon with %s configuration...' % name
+    config_path = os.path.join(config_dir, name + '.ovpn')
+        
+    try:
+        openvpn('--config', os.path.abspath(config_path), '--writepid', PID_PATH, daemon=True)
+    except:
+        print 'Failed to start OpenVPN daemon.'
 
 
-def list_servers(config_dir):
-    print 'would list configured servers in ' + config_dir
+def list_remote_servers():
+    """
+    Lists the names and locations of all available AirVPN servers.
+    """
+    pass
+
+
+def list_local_servers(config_dir):
+    """
+    Lists the names of all locally configured servers. 
+    """
+    print 'Configured servers:'
+    for root, dirs, files in os.walk(os.path.abspath(config_dir)):
+        for _file in files:
+            if _file.endswith('.ovpn'):
+                print _file.split('.')[0]
+
+
+def status(server_id):
+    """
+    Displays the status (bandwidth, # users connected) of the specified 
+    AirVPN server.
+    """
+    pass
 
 
 def iptables_persistent(config_dir):
+    """
+    Outputs rules for blocking non-VPN traffic in the form used by 
+    iptables-persistent.
+    """
     print 'would output iptables-persistent rules for servers in ' + config_dir
 
 
@@ -68,13 +143,18 @@ def main(args):
         connect(args['<name>'],
                 args['--openvpn-dir'])
     elif args['list']:
-        list_servers(args['--openvpn-dir'])
+        if args['--local']:
+            list_local_servers(args['--openvpn-dir'])
+        else:
+            list_remote_servers()
+    elif args['status']:
+        status(args['<server-id>'])
     elif args['iptables_persistent']:
         iptables_persistent(args['--openvpn-dir'])
 
 
 if __name__ == '__main__':
-    if not os.geteuid() == 0:
+    if not os.geteuid() == 0: 
         print "Nope. Must be run as root."
         exit()
 
