@@ -45,8 +45,6 @@ def login():
     Creates a session and logs the user into AirVPN, returning 
     the session on success.
     """
-    print "Log in to AirVPN.org"
-    print "--------------------"
     username = raw_input('Username: ')
     password = getpass.getpass()
 
@@ -124,7 +122,7 @@ def setup(server_name, connect, config_dir):
     print 'Generating configuration...'
 
     # TODO: Necessary?
-    #if not accept_terms: 
+    #if not accept_terms(): 
     #    return
     
     generator_url = 'https://airvpn.org/generator/'
@@ -144,7 +142,7 @@ def setup(server_name, connect, config_dir):
         'download_mode': 'list',
         'download_index': 0,
         'system': 'linux',
-        'server_pavonis': 'on',
+        'server_%s' % server_name: 'on',
         'proxy_mode': 'none',
         'fileprefix': '',
         'customdirectives': '',
@@ -152,9 +150,13 @@ def setup(server_name, connect, config_dir):
         'tosaccept': 'on',
         'tosaccept2': 'on'
     }
-
+    
     response = session.post(generator_url, data=config_data)
     
+    if '0 files in package' in response.text:
+        print 'Invalid server name.'
+        return
+
     config_path = os.path.join(config_dir, server_name + '.ovpn')
 
     # write config file to the openvpn config directory
