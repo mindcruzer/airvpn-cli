@@ -34,6 +34,9 @@ PID_PATH = '/var/run/openvpn.pid'
 
 
 def is_root():
+    """
+    Determines if the application is running with root permissions.
+    """
     return os.geteuid() == 0
 
 
@@ -118,7 +121,6 @@ def setup(server_name, connect, config_dir):
         print 'Login failed.'
         return
     
-    print 'Logged in to AirVPN.org'
     print 'Generating configuration...'
 
     # TODO: Necessary?
