@@ -43,4 +43,12 @@ AirVPN CLI.
 ...
 ```
 
-####
+####iptables
+
+The only command that maybe isn't too self explanatory is `airvpn iptables`. If you're routing all your traffic through 
+a VPN, you need to be careful, because if the connection to the VPN drops (among other things), you're now on an unsecured 
+connection, and you might never even know. To ensure all traffic that isn't destined for either your LAN, loopback, or 
+VPN is dropped, you can set some rules in `iptables`. `airvpn iptables` will output the rules in the form used by the `iptables-persistent` 
+application (which you'll likely need to install), for all configured AirVPN servers. The rules are stored in `/etc/iptables/rules.v4` 
+by default. Thus, if this is something you want, run `airvpn iptables > /etc/iptables/rules.v4`. Yes, 
+it will only make IPv4 rules, because, to my knowledge, AirVPN doesn't support IPv6.
