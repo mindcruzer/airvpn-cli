@@ -373,6 +373,8 @@ def print_rules(lan_ip_block, interface, virtual_interface, config_dir):
     # allow output to VPN servers (ie. for initial connection)
     for server_ip in server_ips:
         print '-A OUTPUT -d %s/32 -o %s -p udp -m udp --dport 443 -j ACCEPT' % (server_ip, interface)
+    
+    print 'COMMIT'
 
 
 def main(args):
