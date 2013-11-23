@@ -1,4 +1,4 @@
-#!/home/mindcruzer/.virtualenvs/airvpn-cli/bin/python
+#!/usr/bin/python
 
 """
 AirVPN CLI.
@@ -249,6 +249,10 @@ def remove(server_name, config_dir):
     """
     Removes the configuration of the specified server.
     """
+    if not is_root():
+        print 'This command must be run as root.'
+        return
+
     servers = get_configured_servers(config_dir)
 
     if server_name not in servers:
