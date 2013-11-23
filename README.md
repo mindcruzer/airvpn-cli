@@ -1,21 +1,46 @@
 AirVPN CLI
 ===========
 
-This is hopefully going to turn into a one-stop-shop for connecting to AirVPN servers on Linux. To switch VPN servers, I'm fairly tired of
+Makes connecting to AirVPN servers in Linux a breeze (for me anyway).
 
-a) Going to airvpn.org     
-b) Logging in    
-c) Downloading the config file    
-d) Opening up my terminal    
-e) Copying over the file to /etc/openvpn, setting permissions    
-d) Connecting    
 
-I'd rather
+**Note:** Because I'm pretty lazy, this has only been tested with Python 2.7
 
-a) Open my terminal    
-b) Type: airvpn list    
-c) Decide on a server    
-d) Type: airvpn setup [some server] --connect    
-e) Go make waffles    
 
-Among other things, I just want an excuse to write some Python.
+####Install
+
+You have `openvpn` installed, right? Good.
+
+Get the required python packages:
+
+```shell
+pip install docopt sh lxml requests texttable
+```
+
+If your `python` binary is located somewhere weird, change the first line of `airvpn` appropriately. 
+
+Copy `airvpn` somewhere in your path (ex. `/bin`).
+
+
+That's it. Open a terminal and type `airvpn -h` for help.
+
+
+####Using with virtualenv
+
+Do everything above (installing the python packages to your virutalenv, obviously). 
+
+Next, open `airvpn` in a text editor, and change the first line 
+to the path of the python binary in your virutalenv. 
+
+ie. If my name is waffles and I use `virtualenvwrapper` to create a virtualenv called `airvpn-cli`:
+
+```shell
+#!/home/waffles/.virtualenvs/airvpn-cli/bin/python
+
+"""
+AirVPN CLI.
+
+...
+```
+
+####
