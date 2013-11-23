@@ -21,7 +21,6 @@ Options:
 """
 
 import os
-import shutil
 import getpass
 
 from docopt import docopt
@@ -87,25 +86,6 @@ def get_pid():
     return pid_file.read()
 
 
-def accept_terms():
-    """
-    Shows the terms of service to the user, and asks for acceptance.
-    """
-    response = raw_input('Do you agree to the AirVPN Terms of Service at https://airvpn.org/tos/? (yes/no) ')
-
-    if response.lower() != 'yes':
-        print 'You must agree to the terms of service to continue.'
-        return
-    
-    second_response = raw_input('Do you explicitly accept points 8, 10 and 11 in the AirVPN Terms of Service at https://airvpn.org/tos/? (yes/no) ')
-
-    if second_response.lower() != 'yes':
-        print 'You must accept points 8, 10 and 11 to continue.'
-        return 
-
-    return True
-
-
 def setup(server_name, connect, config_dir):
     """
     Configures an AirVPN server.
@@ -121,10 +101,6 @@ def setup(server_name, connect, config_dir):
     
     print 'Generating configuration...'
 
-    # TODO: Necessary?
-    #if not accept_terms(): 
-    #    return
-    
     generator_url = 'https://airvpn.org/generator/'
 
     response = session.get(generator_url)
