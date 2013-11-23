@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/home/mindcruzer/.virtualenvs/airvpn-cli/bin/python
 
 """
 AirVPN CLI.
@@ -6,6 +6,7 @@ AirVPN CLI.
 Usage: 
     airvpn setup <server-name> [--connect] [--openvpn-dir=DIR]
     airvpn connect <server-name> [--openvpn-dir=DIR]
+    airvpn disconnect
     airvpn list [--local] [--openvpn-dir=DIR]
     airvpn status <server-name>
     airvpn iptables-persistent [--openvpn-dir=DIR]
@@ -22,9 +23,10 @@ Options:
 
 import os
 import getpass
+import time
 
 from docopt import docopt
-from sh import (chown, chmod, openvpn, kill, iptables)
+from sh import (chown, chmod, openvpn, kill)
 import lxml.html
 import requests
 import texttable
@@ -83,7 +85,7 @@ def get_pid():
     except IOError:
         return None
 
-    return pid_file.read()
+    return pid_file.read().strip('\n')
 
 
 def setup(server_name, connect, config_dir):
@@ -161,23 +163,44 @@ def connect(server_name, config_dir):
     if not is_root():
         print 'This command must be run as root.'
         return
-    
+
+    config_path = os.path.join(config_dir, server_name + '.ovpn')
+
+    if not os.path.exists(config_path):
+        print 'That server is not configured.'
+        return
+
+    if disconnect():
+        print 'Starting OpenVPN daemon with %s configuration...' % server_name
+        try:
+            openvpn('--config', os.path.abspath(config_path), '--writepid', PID_PATH, daemon=True)
+        except:
+            print 'Failed to start OpenVPN daemon.'
+
+
+def disconnect():
+    """
+    Disconnects from the VPN.
+    """
+    if not is_root():
+        print 'This command must be run as root.'
+        return
+
     pid = get_pid()
     if pid:
-        'Shutting down OpenVPN daemon...'
+        print 'Shutting down OpenVPN daemon...'
         try:
             kill(pid)
-        except:
+            # graceful shutdown takes a few seconds
+            time.sleep(8)
+        except Exception as e:
+            print str(e)
             print 'Unable to shut down existing OpenVPN daemon process.'
             return
 
-    print 'Starting OpenVPN daemon with %s configuration...' % server_name
-    config_path = os.path.join(config_dir, server_name + '.ovpn')
-        
-    try:
-        openvpn('--config', os.path.abspath(config_path), '--writepid', PID_PATH, daemon=True)
-    except:
-        print 'Failed to start OpenVPN daemon.'
+        os.unlink(PID_PATH)
+
+    return True
 
 
 def list_remote_servers():
@@ -261,6 +284,8 @@ def main(args):
     elif args['connect']:
         connect(args['<server-name>'],
                 args['--openvpn-dir'])
+    elif args['disconnect']:
+        disconnect()
     elif args['list']:
         if args['--local']:
             list_local_servers(args['--openvpn-dir'])
