@@ -1,24 +1,28 @@
-#!/usr/bin/python
+#!/home/mindcruzer/.virtualenvs/airvpn-cli/bin/python
 
 """
 AirVPN CLI.
 
 Usage: 
+    airvpn list [--local] [--openvpn-dir=DIR]
     airvpn setup <server-name> [--connect] [--openvpn-dir=DIR]
     airvpn connect <server-name> [--openvpn-dir=DIR]
     airvpn disconnect
-    airvpn list [--local] [--openvpn-dir=DIR]
+    airvpn remove <server-name> [--openvpn-dir=DIR]
     airvpn status <server-name>
-    airvpn iptables-persistent [--openvpn-dir=DIR]
+    airvpn rules [--lan-ip-block=BLOCK] [--interface=IF] [--virtual-interface=VIF] [--openvpn-dir=DIR]
     airvpn -h | --help
     airvpn -v | --version
 
 Options:
-    -h --help           Show this screen.
-    -v --version        Show version.
-    --connect           Connect to server after setup.
-    --openvpn-dir=DIR   Path to the OpenVPN config directory. [default: /etc/openvpn]
-    --local             List servers that are configured.
+    --connect                  Connect to server after setup.
+    -h --help                  Show this screen.
+    --interface=IF             The physical network interface on your machine. [default: eth0]
+    --local                    List servers that are configured.
+    --lan-ip-block=BLOCK       The IP block of your local area network. [default: 192.168.1.0/24]
+    --openvpn-dir=DIR          Path to the OpenVPN config directory. [default: /etc/openvpn]
+    -v --version               Show version.
+    --virtual-interface=VIF    The virtual interface created by OpenVPN. [default: tun0]
 """
 
 import os
@@ -34,9 +38,11 @@ import texttable
 PID_PATH = '/var/run/openvpn.pid'
 
 
+# Utility Functions
+# ----------
 def is_root():
     """
-    Determines if the application is running with root permissions.
+    Returns a boolean indicating if the application is running with root permissions.
     """
     return os.geteuid() == 0
 
@@ -77,7 +83,7 @@ def login():
 
 def get_pid():
     """
-    Gets the PID of the currently running OpenVPN daemon process, 
+    Returns the PID of the currently running OpenVPN daemon process,
     if any.
     """
     try:
@@ -88,6 +94,42 @@ def get_pid():
     return pid_file.read().strip('\n')
 
 
+def get_configured_servers(config_dir):
+    """
+    Returns a list of the names of all configured AirVPN servers.
+    """
+    servers = []
+
+    for root, dirs, files in os.walk(os.path.abspath(config_dir)):
+        for _file in files:
+            if _file.endswith('.ovpn'):
+                servers.append(_file.split('.')[0])
+
+    return servers
+
+
+def get_configured_server_ips(config_dir):
+    """
+    Returns a list of IPs for all configured AirVPN servers.
+    """
+    servers = get_configured_servers(config_dir)
+    server_ips = []
+
+    for server in servers:
+        # grab the server ip from the config file
+        config_path = os.path.join(config_dir, server + '.ovpn')
+        config_file = open(config_path, 'r')
+        for line in config_file:
+            if line.startswith('remote'):
+                server_ips.append(line.split(' ')[1])
+                break
+        config_file.close()
+
+    return server_ips
+
+
+# Command Functions
+# ----------
 def setup(server_name, connect, config_dir):
     """
     Configures an AirVPN server.
@@ -203,9 +245,22 @@ def disconnect():
     return True
 
 
+def remove(server_name, config_dir):
+    """
+    Removes the configuration of the specified server.
+    """
+    servers = get_configured_servers(config_dir)
+
+    if server_name not in servers:
+        print 'That server is not configured.'
+    else:
+        os.unlink(os.path.join(config_dir, server_name + '.ovpn'))
+        print 'Server removed.'
+
+
 def list_remote_servers():
     """
-    Lists the names and locations of all available AirVPN servers.
+    Displays the names and locations of all available AirVPN servers.
     """
     response = requests.get('https://airvpn.org/status/')
 
@@ -232,12 +287,12 @@ def list_remote_servers():
 
 def list_local_servers(config_dir):
     """
-    Lists the names of all locally configured servers. 
+    Displays the names of all locally configured servers.
     """
-    for root, dirs, files in os.walk(os.path.abspath(config_dir)):
-        for _file in files:
-            if _file.endswith('.ovpn'):
-                print _file.split('.')[0].capitalize()
+    servers = get_configured_servers(config_dir)
+
+    for server in servers:
+        print server.capitalize()
 
 
 def status(server_name):
@@ -268,12 +323,52 @@ def status(server_name):
         print 'Loading server list failed.'
 
 
-def iptables_persistent(config_dir):
+def print_rules(lan_ip_block, interface, virtual_interface, config_dir):
     """
     Outputs rules for blocking non-VPN traffic in the form used by 
     iptables-persistent.
+
+    More specifically, these rules will block any traffic that isn't from/to
+    the LAN, loopback, or VPN.
     """
-    print 'implement me?'
+    if not is_root():
+        print 'This command must be run as root.'
+        return
+
+    server_ips = get_configured_server_ips(config_dir)
+
+    print '*filter'
+
+    #  default policy: drop all the things
+    print ':INPUT DROP [0:0]'
+    print ':FORWARD DROP [0:0]'
+    print ':OUTPUT DROP [0:0]'
+
+    # allow input from loopback
+    print '-A INPUT -i lo -j ACCEPT'
+
+    # allow input from LAN
+    print '-A INPUT -s %s -i %s -j ACCEPT' % (lan_ip_block, interface)
+
+    # allow input from virtual interface
+    print '-A INPUT -i %s -j ACCEPT' % virtual_interface
+
+    # allow input from VPN servers (ie. for initial connection)
+    for server_ip in server_ips:
+        print '-A INPUT -s %s/32 -i %s -p udp -m udp --sport 443 -j ACCEPT' % (server_ip, interface)
+
+    # allow output to loopback
+    print '-A OUTPUT -o lo -j ACCEPT'
+
+    # allow output to LAN
+    print '-A OUTPUT -d %s -o %s -j ACCEPT' % (lan_ip_block, interface)
+
+    # allow output to virtual interface
+    print '-A OUTPUT -o %s -j ACCEPT' % virtual_interface
+
+    # allow output to VPN servers (ie. for initial connection)
+    for server_ip in server_ips:
+        print '-A OUTPUT -d %s/32 -o %s -p udp -m udp --dport 443 -j ACCEPT' % (server_ip, interface)
 
 
 def main(args):
@@ -286,6 +381,8 @@ def main(args):
                 args['--openvpn-dir'])
     elif args['disconnect']:
         disconnect()
+    elif args['remove']:
+        remove(args['<server-name>'], args['--openvpn-dir'])
     elif args['list']:
         if args['--local']:
             list_local_servers(args['--openvpn-dir'])
@@ -293,8 +390,11 @@ def main(args):
             list_remote_servers()
     elif args['status']:
         status(args['<server-name>'])
-    elif args['iptables_persistent']:
-        iptables_persistent(args['--openvpn-dir'])
+    elif args['rules']:
+        print_rules(args['--lan-ip-block'],
+                    args['--interface'],
+                    args['--virtual-interface'],
+                    args['--openvpn-dir'])
 
 
 if __name__ == '__main__':
