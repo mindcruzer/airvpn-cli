@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/home/mindcruzer/.virtualenvs/airvpn-cli/bin/python
 
 """
 AirVPN CLI.
@@ -154,6 +154,7 @@ def setup(server_name, connect, config_dir):
         # get the csrf token from the response
         csrf_token = page.get_element_by_id('generator').inputs['csrf_token'].get('value')
     except:
+        # the form doesn't get rendered if the user hasn't paid for access
         print 'Account does not allow config generation. Have you tried giving AirVPN money?'
         return
 
@@ -179,10 +180,14 @@ def setup(server_name, connect, config_dir):
 
     config_path = os.path.join(config_dir, server_name + '.ovpn')
 
-    # write config file to the openvpn config directory
-    config_file = open(config_path, 'w')
-    config_file.write(response.text)
-    config_file.close()
+    try:
+        # write config file to the openvpn config directory
+        config_file = open(config_path, 'w')
+        config_file.write(response.text)
+        config_file.close()
+    except:
+        print 'Writing config file failed.'
+        return
 
     try:
         # set root ownership and exclusive rw permissions
@@ -235,8 +240,7 @@ def disconnect():
             kill(pid)
             # graceful shutdown takes a few seconds
             time.sleep(8)
-        except Exception as e:
-            print str(e)
+        except:
             print 'Unable to shut down existing OpenVPN daemon process.'
             return
 
@@ -259,7 +263,7 @@ def remove(server_name, config_dir):
         print 'That server is not configured.'
     else:
         os.unlink(os.path.join(config_dir, server_name + '.ovpn'))
-        print 'Server removed.'
+        print '%s server removed.' % server_name.capitalize()
 
 
 def list_remote_servers():
