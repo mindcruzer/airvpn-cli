@@ -10,7 +10,7 @@ Usage:
     airvpn disconnect
     airvpn remove <server-name> [--openvpn-dir=DIR]
     airvpn status <server-name>
-    airvpn rules [--lan-ip-block=BLOCK] [--interface=IF] [--virtual-interface=VIF] [--openvpn-dir=DIR]
+    airvpn rules [--lan-ip-block=LAN] [--interface=IF] [--virtual-interface=VIF] [--openvpn-dir=DIR]
     airvpn -h | --help
     airvpn -v | --version
 
@@ -19,7 +19,7 @@ Options:
     -h --help                  Show this screen.
     --interface=IF             The physical network interface on your machine. [default: eth0]
     --local                    List servers that are configured.
-    --lan-ip-block=BLOCK       The IP block of your local area network. [default: 192.168.1.0/24]
+    --lan-ip-block=LAN         The IP block of your local area network. [default: 192.168.1.0/24]
     --openvpn-dir=DIR          Path to the OpenVPN config directory. [default: /etc/openvpn]
     -v --version               Show version.
     --virtual-interface=VIF    The virtual interface created by OpenVPN. [default: tun0]
