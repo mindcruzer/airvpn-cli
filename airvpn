@@ -378,6 +378,9 @@ def print_rules(lan_ip_block, interface, virtual_interface, config_dir):
 
 
 def main(args):
+    if args['<server-name>']:
+        args['<server-name>'].lower()
+    
     if args['setup']:
         setup(args['<server-name>'],
               args['--connect'],
