@@ -54,8 +54,9 @@ by default. Thus, if this is something you want, run `airvpn rules > /etc/iptabl
 it will only make IPv4 rules, because, to my knowledge, AirVPN doesn't support IPv6.
 
 
-####Why is it kind of slow?
-It's slow because AirVPN doesn't have an API, and as such things are getting done the old fashioned way.
+####Why are some commands kind of slow?
+It's slow because ~~AirVPN doesn't have an API~~ while AirVPN does have an API, it lacks some required functions, and 
+as such things are getting done the old fashioned way.
 
 
 ####What doesn't it do?
