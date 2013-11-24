@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-
 # AirVPN CLI
 # Copyright (C) 2013  Sean Stewart
 
@@ -17,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 """
 AirVPN CLI.
 
@@ -27,7 +25,7 @@ Usage:
     airvpn connect <server-name> [--openvpn-dir=DIR]
     airvpn disconnect
     airvpn remove <server-name> [--openvpn-dir=DIR]
-    airvpn status <server-name>
+    airvpn status [<server-name>]
     airvpn rules [--lan-ip-block=LAN] [--interface=IF] [--virtual-interface=VIF] [--openvpn-dir=DIR]
     airvpn -h | --help
     airvpn -v | --version
@@ -323,22 +321,37 @@ def list_local_servers(config_dir):
 
 def status(server_name):
     """
-    Displays the status (bandwidth, # users connected) of the specified 
+    Displays the status (bandwidth, # users connected) of the current or specified 
     AirVPN server.
     """
     response = requests.get('https://airvpn.org/status/')
     
     if response.status_code == 200:
         page = lxml.html.fromstring(response.text)
+        
+        connected = False
+
+        if not server_name:
+            # get the current server name, if any
+            connection_status = page.xpath('//*[@id="boxes"]/div[2]/span/text()')[0].strip()
+            if connection_status == 'Connected!':
+                connected = True
+                server_name = page.xpath('//*[@id="boxes"]/div[2]/div/b/a/text()')[0].strip().lower()
+            else:
+                print 'You are not connected to an AirVPN server.'
+                return 
 
         server_boxes = page.xpath('//div[@class="air_server_box_1"]')
-
+        
         for box in server_boxes:
             name = box.xpath('div[1]/div[1]/div[1]/text()')[0].strip().lower()
             if name == server_name:
                 bandwidth = box.xpath('div[2]/div[1]/div[1]/div[2]/text()')[0].strip()
                 users = box.xpath('div[2]/div[1]/span/text()')[0].strip()
-                print '%s' % name.capitalize()
+                if connected:
+                    print 'Connected to %s' % name.capitalize()
+                else:
+                    print name.capitalize()
                 print "--------------------"
                 print 'Bandwidth: %s' % bandwidth
                 print 'Users: %s' % users
