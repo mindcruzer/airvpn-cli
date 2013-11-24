@@ -101,6 +101,9 @@ These can be changed with the `--lan-ip-block`, `--interface` and `--virtual-int
 
 This command must be run with root permissions.
 
+
+###FAQ
+
 ####Why are some commands kind of slow?
 
 They're slow because while AirVPN does have an API, it lacks some required functions, and as such things are getting 
