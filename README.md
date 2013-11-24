@@ -3,34 +3,26 @@ AirVPN CLI
 
 Makes connecting to AirVPN servers in Linux a breeze (for me anyway).
 
+###Install
 
-**Note:** Because I'm pretty lazy, this has only been tested with Python 2.7
+####Prerequisites
 
+Have `openvpn` installed. In Ubuntu and Mint: `sudo apt-get install openvpn`
 
-####Install
+`airvpn` has only been tested with Python 2.7.x. It requires that you have the following python packages installed:
 
-You have `openvpn` installed, right? Good.
+* docopt
+* sh
+* lxml
+* requests
+* texttable
 
-Get the required python packages:
+ex. `pip install docopt sh lxml requests texttable`
 
-```shell
-pip install docopt sh lxml requests texttable
-```
+####Setup
 
-If your `python` binary is located somewhere weird, change the first line of `airvpn` appropriately. 
-
-Copy `airvpn` somewhere in your path (ex. `/bin`).
-
-
-That's it. Open a terminal and type `airvpn -h` for help.
-
-
-####Using with virtualenv
-
-Do everything above (installing the python packages to your virutalenv, obviously). 
-
-Next, open `airvpn` in a text editor, and change the first line 
-to the path of the `python` binary in your virutalenv.
+If your `python` binary is located somewhere that isn't `/usr/bin/python`, change the first line of 
+`airvpn` appropriately. 
 
 ex. If my name is waffles and I use `virtualenvwrapper` to create a virtualenv called `airvpn-cli`:
 
@@ -40,10 +32,20 @@ ex. If my name is waffles and I use `virtualenvwrapper` to create a virtualenv c
 """
 AirVPN CLI.
 
-...
 ```
 
-####IPTables Rules
+Copy `airvpn` somewhere in your path. ex. `sudo cp airvpn /bin`
+
+
+###Commands
+
+####list
+ex. `airvpn list`
+
+List all AirVPN servers and their locations. 
+
+
+####rules
 
 The only command that maybe isn't too self explanatory is `airvpn rules`. If you're routing all your traffic through
 a VPN, you need to be careful, because if the connection to the VPN drops (among other things), you're now on an unsecured 
