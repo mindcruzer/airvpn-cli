@@ -82,10 +82,12 @@ This command must be run with root permissions.
 
 ####status
 
-ex. `airvpn status pavonis`
+ex. `airvpn status`
 
-Display the status of the specified AirVPN server. This will display both the current bandwidth usage, and the number of 
-users connected to the server.
+Display the status of the server you're currently connected to, if any. This will display both the current bandwidth 
+usage, and the number of users connected to the server. If you want to view the status of a specific server 
+(ie. one you're not currently connected to) add the name of the server as the first argument (ex. `airvpn status lyra`). 
+
 
 ####rules
 
