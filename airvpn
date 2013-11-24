@@ -1,4 +1,4 @@
-#!/home/mindcruzer/.virtualenvs/airvpn-cli/bin/python
+#!/usr/bin/python
 
 """
 AirVPN CLI.
