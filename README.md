@@ -17,7 +17,7 @@ Have `openvpn` installed. In Ubuntu and Mint: `sudo apt-get install openvpn`
 * requests
 * texttable
 
-ex. `pip install docopt sh lxml requests texttable`
+ex. `cd airvpn-cli && pip install -r REQUIREMENTS`
 
 ####Setup
 
@@ -39,7 +39,7 @@ Copy `airvpn` somewhere in your path. ex. `sudo cp airvpn /bin`
 
 ###Commands
 
-*Note*: Before you start using `airvpn` for the first time, make sure `openvpn` is not running. 
+*Note*: Before you start using `airvpn` for the first time, make sure `openvpn` is not running (`ps -A | grep openvpn`). 
 
 ####list
 ex. `airvpn list`
