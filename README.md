@@ -1,7 +1,7 @@
 AirVPN CLI
 ===========
 
-Makes connecting to AirVPN servers in Linux a breeze (for me anyway).
+Makes connecting to [AirVPN](https://airvpn.org/) servers in Linux a breeze (for me anyway).
 
 ###Install
 
